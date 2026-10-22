@@ -17,17 +17,19 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private float lookLimit = 80f;
 
     private CharacterController controller;
+    private ParcelCarrier parcelCarrier;
     private float verticalVelocity;
     private float cameraPitch;
 
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
+        parcelCarrier = GetComponent<ParcelCarrier>();
 
         if (viewCamera == null)
         {
             Debug.LogError(
-                "FirstPersonController: View Camera¿¡ Main Camera¸¦ ¿¬°áÇÏ¼¼¿ä.",
+                "FirstPersonController: View Cameraì— Main Cameraë¥¼ ì—°ê²°í•˜ì„¸ìš”.",
                 this);
 
             enabled = false;
@@ -48,14 +50,14 @@ public class FirstPersonController : MonoBehaviour
         Keyboard keyboard = Keyboard.current;
         Mouse mouse = Mouse.current;
 
-        // Esc¸¦ ´©¸£¸é ¸¶¿ì½º Ä¿¼­¸¦ Ç®¾îÁØ´Ù.
+        // Escë¥¼ ëˆ„ë¥´ë©´ ë§ˆìš°ìŠ¤ ì»¤ì„œë¥¼ í’€ì–´ì¤€ë‹¤.
         if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
         {
             SetCursorLocked(false);
         }
 
-        // Ä¿¼­°¡ Ç®·Á ÀÖ´Â µ¿¾È¿¡´Â Á¶ÀÛÀ» ¸ØÃá´Ù.
-        // Áß·ÂÀº °è¼Ó Àû¿ëÇÏ°í, Å¬¸¯ÇÏ¸é Á¶ÀÛÀ» Àç°³ÇÑ´Ù.
+        // ì»¤ì„œê°€ í’€ë ¤ ìˆëŠ” ë™ì•ˆì—ëŠ” ì¡°ì‘ì„ ë©ˆì¶˜ë‹¤.
+        // ì¤‘ë ¥ì€ ê³„ì† ì ìš©í•˜ê³ , í´ë¦­í•˜ë©´ ì¡°ì‘ì„ ì¬ê°œí•œë‹¤.
         if (Cursor.lockState != CursorLockMode.Locked)
         {
             if (mouse != null && mouse.leftButton.wasPressedThisFrame)
@@ -89,10 +91,10 @@ public class FirstPersonController : MonoBehaviour
     {
         Vector2 look = mouseDelta * mouseSensitivity;
 
-        // ÁÂ¿ì È¸ÀüÀº ÇÃ·¹ÀÌ¾î ¸öÃ¼¿¡ Àû¿ëÇÑ´Ù.
+        // ì¢Œìš° íšŒì „ì€ í”Œë ˆì´ì–´ ëª¸ì²´ì— ì ìš©í•œë‹¤.
         transform.Rotate(0f, look.x, 0f);
 
-        // »óÇÏ È¸ÀüÀº Ä«¸Ş¶ó¿¡¸¸ Àû¿ëÇÑ´Ù.
+        // ìƒí•˜ íšŒì „ì€ ì¹´ë©”ë¼ì—ë§Œ ì ìš©í•œë‹¤.
         cameraPitch -= look.y;
         cameraPitch = Mathf.Clamp(
             cameraPitch, -lookLimit, lookLimit);
@@ -103,7 +105,10 @@ public class FirstPersonController : MonoBehaviour
 
     private void MovePlayer(Vector2 input)
     {
-        // ´ë°¢¼±À¸·Î ¿òÁ÷ÀÏ ¶§µµ ¼Óµµ¸¦ µ¿ÀÏÇÏ°Ô À¯ÁöÇÑ´Ù.
+        if (parcelCarrier != null && parcelCarrier.BlocksPlayerActions)
+            input = Vector2.zero;
+
+        // ëŒ€ê°ì„ ìœ¼ë¡œ ì›€ì§ì¼ ë•Œë„ ì†ë„ë¥¼ ë™ì¼í•˜ê²Œ ìœ ì§€í•œë‹¤.
         input = Vector2.ClampMagnitude(input, 1f);
 
         Vector3 horizontal =

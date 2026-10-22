@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -6,12 +7,16 @@ public class PlayerInteractor : MonoBehaviour
 {
     [SerializeField] private Transform viewCamera;
     [SerializeField, Min(0.1f)] private float interactionDistance = 2.5f;
+    [SerializeField] private TMP_Text interactionPrompt;
 
+    private readonly RaycastHit[] interactionHits = new RaycastHit[32];
     private InteractableObject currentTarget;
+    private ParcelCarrier parcelCarrier;
     private GUIStyle promptStyle;
 
     private void Awake()
     {
+        parcelCarrier = GetComponent<ParcelCarrier>();
         if (viewCamera == null)
         {
             Debug.LogError(
@@ -26,8 +31,10 @@ public class PlayerInteractor : MonoBehaviour
     {
         currentTarget = null;
 
-        if (Cursor.lockState != CursorLockMode.Locked)
+        if (Cursor.lockState != CursorLockMode.Locked ||
+            (parcelCarrier != null && parcelCarrier.BlocksPlayerActions))
         {
+            UpdatePrompt();
             return;
         }
 
@@ -35,21 +42,29 @@ public class PlayerInteractor : MonoBehaviour
             viewCamera.position,
             viewCamera.forward);
 
-        if (Physics.SphereCast(
-            ray,
-            0.2f,
-            out RaycastHit hit,
-            interactionDistance,
-            Physics.DefaultRaycastLayers,
-            QueryTriggerInteraction.Ignore))
+        int count = Physics.SphereCastNonAlloc(ray, 0.2f, interactionHits,
+            interactionDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+        RaycastHit[] hits = interactionHits;
+        // Preserve occlusion even if a crowded scene fills the reusable buffer.
+        if (count == interactionHits.Length)
         {
-            InteractableObject candidate =
-                hit.collider.GetComponentInParent<InteractableObject>();
+            hits = Physics.SphereCastAll(ray, 0.2f, interactionDistance,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+            count = hits.Length;
+        }
 
-            if (candidate != null && candidate.isActiveAndEnabled)
-            {
-                currentTarget = candidate;
-            }
+        float closestDistance = float.PositiveInfinity;
+        for (int i = 0; i < count; i++)
+        {
+            Collider hitCollider = hits[i].collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform)) continue;
+            InteractableObject candidate = hitCollider.GetComponentInParent<InteractableObject>();
+            bool available = candidate != null && candidate.isActiveAndEnabled;
+            // Unrelated gameplay triggers do not block the view; solid walls still do.
+            if (hitCollider.isTrigger && !available) continue;
+            if (hits[i].distance >= closestDistance) continue;
+            closestDistance = hits[i].distance;
+            currentTarget = available ? candidate : null;
         }
 
         Keyboard keyboard = Keyboard.current;
@@ -61,11 +76,28 @@ public class PlayerInteractor : MonoBehaviour
             currentTarget.Interact();
             currentTarget = null;
         }
+
+        UpdatePrompt();
+    }
+
+    private void UpdatePrompt()
+    {
+        if (interactionPrompt == null) return;
+        interactionPrompt.text = currentTarget != null && currentTarget.isActiveAndEnabled
+            ? "[E] " + currentTarget.Prompt
+            : "";
+    }
+
+    private void OnDisable()
+    {
+        currentTarget = null;
+        if (interactionPrompt != null) interactionPrompt.text = "";
     }
 
     private void OnGUI()
     {
-        if (Cursor.lockState != CursorLockMode.Locked)
+        if (Cursor.lockState != CursorLockMode.Locked ||
+            (parcelCarrier != null && parcelCarrier.BlocksPlayerActions))
         {
             return;
         }
@@ -77,6 +109,8 @@ public class PlayerInteractor : MonoBehaviour
         GUI.DrawTexture(
             new Rect(centerX - 2f, centerY - 2f, 4f, 4f),
             Texture2D.whiteTexture);
+
+        if (interactionPrompt != null) return;
 
         if (currentTarget == null || !currentTarget.isActiveAndEnabled)
         {

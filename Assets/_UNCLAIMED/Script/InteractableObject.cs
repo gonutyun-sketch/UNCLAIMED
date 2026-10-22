@@ -9,6 +9,16 @@ public class InteractableObject : MonoBehaviour
 
     public string Prompt => prompt;
 
+    public void AddListener(UnityAction listener)
+    {
+        onInteract.AddListener(listener);
+    }
+
+    public void RemoveListener(UnityAction listener)
+    {
+        onInteract.RemoveListener(listener);
+    }
+
     public void Interact()
     {
         if (isActiveAndEnabled)
